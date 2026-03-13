@@ -7,13 +7,13 @@ const YR_BASE = "https://www.yr.no";
 const SEVERITY_EMOJI = { Extreme: "🔴", Severe: "🟠", Moderate: "🟡" };
 
 const EVENT_TYPE_EMOJI = {
-  Flood: "🌊", Avalanche: "🏔️", Gale: "💨", Rain: "🌧️",
+  Flood: "🌊", Avalanches: "🏔️", Gale: "💨", Rain: "🌧️",
   Snow: "❄️", Ice: "🧊", StormSurge: "🌊", Lightning: "⛈️",
 };
 
 // Per event type: which severities should trigger an alert
 const SEVERITY_THRESHOLD = {
-  Avalanche: ["Extreme"],
+  Avalanches: ["Extreme"],
   Flood:     ["Moderate", "Severe", "Extreme"],
   StormSurge:["Moderate", "Severe", "Extreme"],
   default:   ["Severe", "Extreme"],
