@@ -3,7 +3,7 @@ const { parseString } = require("xml2js");
 
 const WEBHOOK = process.env.SLACK_WEBHOOK;
 const RSS_URL = "https://api.met.no/weatherapi/metalerts/2.0/current.rss";
-const EMOJI = { Extreme: "🔴", Severe: "🟠", Moderate: "🟡", Minor: "🟢" };
+const EMOJI = { Extreme: "🔴", Severe: "🟠" };
 
 function get(url) {
   return new Promise((res, rej) => {
@@ -35,21 +35,28 @@ async function main() {
   const xml = await get(RSS_URL);
   parseString(xml, async (err, result) => {
     if (err) throw err;
-    const items = result?.rss?.channel?.[0]?.item || [];
-    console.log("Found " + items.length + " alert(s)");
+    const allItems = result?.rss?.channel?.[0]?.item || [];
+    const items = allItems.filter(item => {
+      const title = item.title?.[0] || "";
+      const desc = item.description?.[0] || "";
+      return title.includes("Extreme") || title.includes("Severe") ||
+             desc.includes("Extreme") || desc.includes("Severe");
+    });
+    console.log("Found " + allItems.length + " total, " + items.length + " severe/extreme alert(s)");
+    if (items.length === 0) {
+      console.log("No severe alerts, skipping Slack message.");
+      return;
+    }
     const blocks = [
-      { type: "header", text: { type: "plain_text", text: "MET Farevarslinger", emoji: true }},
+      { type: "header", text: { type: "plain_text", text: "⚠️ MET Farevarslinger – Alvorlige varsler", emoji: true }},
       { type: "divider" }
     ];
-    if (items.length === 0) {
-      blocks.push({ type: "section", text: { type: "mrkdwn", text: "Ingen aktive farevarslinger." }});
-    } else {
-      for (const item of items.slice(0, 10)) {
-        const title = item.title?.[0] || "Ukjent";
-        const desc = (item.description?.[0] || "").replace(/<[^>]+>/g, "").slice(0, 200);
-        blocks.push({ type: "section", text: { type: "mrkdwn", text: "* " + title + "*\n" + desc }});
-        blocks.push({ type: "divider" });
-      }
+    for (const item of items.slice(0, 10)) {
+      const title = item.title?.[0] || "Ukjent";
+      const desc = (item.description?.[0] || "").replace(/<[^>]+>/g, "").slice(0, 200);
+      const emoji = title.includes("Extreme") ? "🔴" : "🟠";
+      blocks.push({ type: "section", text: { type: "mrkdwn", text: emoji + " *" + title + "*\n" + desc }});
+      blocks.push({ type: "divider" });
     }
     const status = await post(WEBHOOK, { username: "MET Farevarsler", icon_emoji: ":warning:", blocks });
     if (status === 200) console.log("Sendt til Slack!");
