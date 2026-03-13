@@ -2,6 +2,7 @@ const https = require("https");
 
 const WEBHOOK = process.env.SLACK_WEBHOOK;
 const YR_URL = "https://www.yr.no/api/v0/warnings?language=en";
+const YR_BASE = "https://www.yr.no";
 
 const SEVERITY_EMOJI = { Extreme: "🔴", Severe: "🟠" };
 
@@ -54,6 +55,13 @@ async function main() {
     return;
   }
 
+  // Sort: Forecast first, then Ongoing
+  warnings.sort((a, b) => {
+    if (a.meta.eventStatus === "Forecast" && b.meta.eventStatus !== "Forecast") return -1;
+    if (a.meta.eventStatus !== "Forecast" && b.meta.eventStatus === "Forecast") return 1;
+    return 0;
+  });
+
   const blocks = [
     { type: "header", text: { type: "plain_text", text: "⚠️ Norwegian Weather & Nature Warnings", emoji: true }},
     { type: "context", elements: [{ type: "mrkdwn", text: `Source: *yr.no* (MET + NVE) • ${new Date().toLocaleString("nb-NO", { timeZone: "Europe/Oslo" })}` }]},
@@ -61,15 +69,30 @@ async function main() {
   ];
 
   for (const w of warnings.slice(0, 15)) {
-    const { shortTitle, severity, eventType, areas, label } = w.meta;
+    const { shortTitle, severity, eventType, areas, label, eventStatus } = w.meta;
+    const selfLink = w._links?.self?.href ? YR_BASE + w._links.self.href : null;
     const sevEmoji = SEVERITY_EMOJI[severity] || "⚠️";
     const typeEmoji = EVENT_TYPE_EMOJI[eventType] || "🌍";
     const areaText = areas?.join(", ") || "Unknown area";
     const categoryLabel = label ? ` · _${label}_` : "";
-    blocks.push({
+
+    const section = {
       type: "section",
-      text: { type: "mrkdwn", text: `${sevEmoji}${typeEmoji} *${shortTitle}*\n📍 ${areaText}${categoryLabel}` }
-    });
+      text: {
+        type: "mrkdwn",
+        text: `${sevEmoji}${typeEmoji} *${shortTitle}*\n📍 ${areaText}${categoryLabel}`
+      }
+    };
+
+    if (selfLink) {
+      section.accessory = {
+        type: "button",
+        text: { type: "plain_text", text: "Les mer", emoji: true },
+        url: selfLink
+      };
+    }
+
+    blocks.push(section);
     blocks.push({ type: "divider" });
   }
 
