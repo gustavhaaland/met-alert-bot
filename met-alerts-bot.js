@@ -4,12 +4,25 @@ const WEBHOOK = process.env.SLACK_WEBHOOK;
 const YR_URL = "https://www.yr.no/api/v0/warnings?language=en";
 const YR_BASE = "https://www.yr.no";
 
-const SEVERITY_EMOJI = { Extreme: "🔴", Severe: "🟠" };
+const SEVERITY_EMOJI = { Extreme: "🔴", Severe: "🟠", Moderate: "🟡" };
 
 const EVENT_TYPE_EMOJI = {
   Flood: "🌊", Avalanche: "🏔️", Gale: "💨", Rain: "🌧️",
   Snow: "❄️", Ice: "🧊", StormSurge: "🌊", Lightning: "⛈️",
 };
+
+// Per event type: which severities should trigger an alert
+const SEVERITY_THRESHOLD = {
+  Avalanche: ["Extreme"],
+  Flood:     ["Moderate", "Severe", "Extreme"],
+  StormSurge:["Moderate", "Severe", "Extreme"],
+  default:   ["Severe", "Extreme"],
+};
+
+function shouldAlert(eventType, severity) {
+  const allowed = SEVERITY_THRESHOLD[eventType] || SEVERITY_THRESHOLD.default;
+  return allowed.includes(severity);
+}
 
 function get(url) {
   return new Promise((res, rej) => {
@@ -45,13 +58,13 @@ async function main() {
 
   const allWarnings = data.warnings || [];
   const warnings = allWarnings.filter(w =>
-    w.meta.severity === "Severe" || w.meta.severity === "Extreme"
+    shouldAlert(w.meta.eventType, w.meta.severity)
   );
 
-  console.log(`Found ${allWarnings.length} total, ${warnings.length} severe/extreme warning(s)`);
+  console.log(`Found ${allWarnings.length} total, ${warnings.length} qualifying warning(s)`);
 
   if (warnings.length === 0) {
-    console.log("No severe alerts, skipping Slack message.");
+    console.log("No qualifying alerts, skipping Slack message.");
     return;
   }
 
@@ -69,7 +82,7 @@ async function main() {
   ];
 
   for (const w of warnings.slice(0, 15)) {
-    const { shortTitle, severity, eventType, areas, label, eventStatus } = w.meta;
+    const { shortTitle, severity, eventType, areas, label } = w.meta;
     const selfLink = w._links?.self?.href ? YR_BASE + w._links.self.href : null;
     const sevEmoji = SEVERITY_EMOJI[severity] || "⚠️";
     const typeEmoji = EVENT_TYPE_EMOJI[eventType] || "🌍";
