@@ -12,10 +12,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: npm install xml2js
-
-      - name: Run MET alerts bot
+      - name: Run weather alerts bot
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: node met-alerts-bot.js
