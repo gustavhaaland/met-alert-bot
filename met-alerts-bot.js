@@ -74,7 +74,7 @@ async function main() {
   }
 
   if (warnings.length > 15) {
-    blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: `_…and ${warnings.length - 15} more. See <https://www.yr.no/en/warnings|yr.no/warnings>._` }]});
+    blocks.push({ type: "context", elements: [{ type: "mrkdwn", text: `_…and ${warnings.length - 15} more. See <https://www.yr.no/nb/farevarsler|yr.no/farevarsler>._` }]});
   }
 
   const status = await post(WEBHOOK, { username: "Weather Alerts Norway", icon_emoji: ":warning:", blocks });
